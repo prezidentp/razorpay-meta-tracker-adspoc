@@ -12,11 +12,12 @@ export default async function handler(req, res) {
     const event = body?.event;
     console.log("Incoming Razorpay event:", event);
 
-    // Replace with your actual Pixel details
+    // 🔥 Your actual Meta Pixel credentials
     const pixelId = "854525376948070";
-    const accessToken = "EAAMI5hH14R0BQMQ4I2QWbz7gG9B1gjGqtOBGWxtZBTKMGyArP0gclk8OdBdpZAZAQmUGVZAfEI8YKUBjKDOzC2SYo0oU8lvnm0J2fDWrEIzdZBaVtzh4zvVDb9LYWsXTBq2ejm7Qvs65ZBuUJaD5NmscbLBEQBm2QkGA2MzGtOqYZBzTP6k9iKZA0cMpY4weBZC213QZDZD";
+    const accessToken =
+      "EAAMI5hH14R0BQJcdf4H5UCaeZC5gIEvYmZB38dVTxRDsPlaSPq210g83Dz6kI8pLS1vSYKihYZB2jfYz6CtVPzuZCLc6c5sMh4xEesDBEK8eeBZBEkxdZAyD4DqCsXlBBoSZBmlqM4RTFjVARp9ugyOv4eR1L7ldt1GzlIgvM3ZBvYreu6xmUQuU0hK29M51mIfXhgZDZD";
 
-    // Track only successful payments
+    // ✅ Only process successful payment events
     if (!["payment.captured", "order.paid"].includes(event)) {
       console.log("Ignored event:", event);
       return res.status(200).json({ ignored: event });
@@ -28,7 +29,9 @@ export default async function handler(req, res) {
     const amount = (payment.amount || 0) / 100;
     const email = payment.email || "";
     const contact = payment.contact || "";
-    const eventId = payment.id || body.id || `rzp_${Date.now()}`;
+
+    // ✅ Stable event_id for deduplication
+    const eventId = payment.order_id || payment.id;
 
     // Hash helper (Meta requires SHA256)
     const hash = (val) =>
@@ -38,7 +41,6 @@ export default async function handler(req, res) {
     const user_data = {};
     if (email) user_data.em = [hash(email)];
     if (contact) {
-      // Normalize phone: remove symbols and add country code if missing
       const normalizedPhone = contact.replace(/\D/g, "");
       const withCountryCode = normalizedPhone.startsWith("91")
         ? normalizedPhone
@@ -46,15 +48,16 @@ export default async function handler(req, res) {
       user_data.ph = [hash(withCountryCode)];
     }
 
-    // Include non-hashed fields for matching accuracy
+    // Non-hashed identifiers for better match
     user_data.client_ip_address =
       req.headers["x-forwarded-for"] || req.socket.remoteAddress || "";
     user_data.client_user_agent = req.headers["user-agent"] || "";
 
-    // Optional extras you can keep or remove
+    // Optional extras (keep commented unless you want them)
     // user_data.country = [hash("in")];
     // user_data.external_id = [hash(eventId)];
 
+    // ✅ Final Meta CAPI payload
     const metaPayload = {
       data: [
         {
@@ -62,7 +65,7 @@ export default async function handler(req, res) {
           event_time: Math.floor(Date.now() / 1000),
           event_id: eventId,
           action_source: "website",
-          event_source_url: "https://yourdomain.com",
+          event_source_url: "https://www.adspoc.in/", // 👈 Replace with your actual store domain
           user_data,
           custom_data: {
             currency: "INR",
@@ -74,7 +77,7 @@ export default async function handler(req, res) {
 
     console.log("Meta Payload Preview:", JSON.stringify(metaPayload, null, 2));
 
-    // Send to Meta CAPI
+    // Send to Meta Conversions API
     const response = await fetch(
       `https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${accessToken}`,
       {
@@ -93,5 +96,4 @@ export default async function handler(req, res) {
     res.status(500).json({ error: "Internal Server Error" });
   }
 }
-
 
