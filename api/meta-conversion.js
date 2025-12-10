@@ -30,8 +30,11 @@ export default async function handler(req, res) {
     const email = payment.email || "";
     const contact = payment.contact || "";
 
-    // ✅ Stable event_id for deduplication
-    const eventId = payment.order_id || payment.id;
+    // ✅ Stable event_id for deduplication across both events
+    const eventId =
+      payment.order_id ||
+      body.payload?.payment?.entity?.order_id ||
+      body.payload?.order?.entity?.id;
 
     // Hash helper (Meta requires SHA256)
     const hash = (val) =>
@@ -65,7 +68,7 @@ export default async function handler(req, res) {
           event_time: Math.floor(Date.now() / 1000),
           event_id: eventId,
           action_source: "website",
-          event_source_url: "https://www.adspoc.in/", // 👈 Replace with your actual store domain
+          event_source_url: "https://www.adspoc.in/",
           user_data,
           custom_data: {
             currency: "INR",
@@ -96,4 +99,3 @@ export default async function handler(req, res) {
     res.status(500).json({ error: "Internal Server Error" });
   }
 }
-
