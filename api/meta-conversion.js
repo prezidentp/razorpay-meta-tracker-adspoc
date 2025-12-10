@@ -13,8 +13,8 @@ export default async function handler(req, res) {
     console.log("Incoming Razorpay event:", event);
 
     // Replace with your actual Pixel details
-    const pixelId = "YOUR_PIXEL_ID";
-    const accessToken = "YOUR_ACCESS_TOKEN";
+    const pixelId = "854525376948070";
+    const accessToken = "EAAMI5hH14R0BQMQ4I2QWbz7gG9B1gjGqtOBGWxtZBTKMGyArP0gclk8OdBdpZAZAQmUGVZAfEI8YKUBjKDOzC2SYo0oU8lvnm0J2fDWrEIzdZBaVtzh4zvVDb9LYWsXTBq2ejm7Qvs65ZBuUJaD5NmscbLBEQBm2QkGA2MzGtOqYZBzTP6k9iKZA0cMpY4weBZC213QZDZD";
 
     // Track only successful payments
     if (!["payment.captured", "order.paid"].includes(event)) {
@@ -93,4 +93,5 @@ export default async function handler(req, res) {
     res.status(500).json({ error: "Internal Server Error" });
   }
 }
+
 
