@@ -2,64 +2,67 @@ import fetch from "node-fetch";
 
 export default async function handler(req, res) {
   try {
-    const data = req.body;
-    console.log("Incoming Razorpay webhook:", JSON.stringify(data));
-
-    const payment = data?.payload?.payment?.entity;
-    if (!payment) {
-      return res.status(400).json({ error: "Invalid webhook" });
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Invalid webhook" });
     }
 
-    const paymentId = payment.id;
+    const body = req.body;
+    const event = body?.event;
+    console.log("Incoming Razorpay event:", event);
+
+    // 🔧 Replace with your actual Pixel info
+    const pixelId = "YOUR_PIXEL_ID";
+    const accessToken = "YOUR_ACCESS_TOKEN";
+
+    // Process only completed payments
+    if (!["payment.captured", "order.paid"].includes(event)) {
+      console.log("Ignored event:", event);
+      return res.status(200).json({ ignored: event });
+    }
+
+    const payment =
+      body?.payload?.payment?.entity || body?.payload?.order?.entity || {};
+    const amount = (payment.amount || 0) / 100;
     const email = payment.email || "";
-    const phone = payment.contact || "";
-    const amount = payment.amount ? payment.amount / 100 : 0;
+    const contact = payment.contact || "";
+    const eventId = payment.id || body.id || Date.now().toString();
 
-    const cacheKey = `processed_${paymentId}`;
-    global[cacheKey] = global[cacheKey] || false;
-    if (global[cacheKey]) {
-      return res.status(200).json({ status: "duplicate" });
-    }
-    global[cacheKey] = true;
-
-    // 🔧 Replace these two lines only
-    const pixelId = "854525376948070"; // <-- your pixel ID here
-    const accessToken = "EAAMI5hH14R0BQB6ccaZAUDKJwdo6I3H1d5qVxXKLg2lTOxKP9p4Qf4wPd7ht3bdiJQhMsJ0sug4jjaxAImJvob35I3Aprs5Kme1U9TZBkU6grhi5Xav6u6vKbBjjzsX2C6hS5Cwl5yO5uPqZASDw7pZCmOpr1JqINyVHdfSaBJiSh2EuOZAGO9v5UEZCQdu80DXwZDZD"; // <-- your access token here
-
+    // Build payload for Meta CAPI
     const metaPayload = {
       data: [
         {
           event_name: "Purchase",
           event_time: Math.floor(Date.now() / 1000),
-          action_source: "website",
-          event_id: paymentId,
+          event_id: eventId,
           user_data: {
-            em: email ? [Buffer.from(email.trim().toLowerCase()).toString("base64")] : [],
-            ph: phone ? [Buffer.from(phone.trim()).toString("base64")] : []
+            em: email ? [email.trim().toLowerCase()] : [],
+            ph: contact ? [contact.trim()] : [],
           },
           custom_data: {
             currency: "INR",
-            value: amount
-          }
-        }
-      ]
+            value: amount,
+          },
+        },
+      ],
     };
+
+    console.log("Sending event to Meta:", metaPayload);
 
     const response = await fetch(
       `https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${accessToken}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(metaPayload)
+        body: JSON.stringify(metaPayload),
       }
     );
 
-    const fbResult = await response.json();
-    console.log("Meta response:", fbResult);
+    const result = await response.json();
+    console.log("Meta response:", JSON.stringify(result, null, 2));
 
-    res.status(200).json({ success: true, meta: fbResult });
+    res.status(200).json({ success: true, metaResponse: result });
   } catch (error) {
-    console.error("Error processing webhook:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Error sending to Meta:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 }
