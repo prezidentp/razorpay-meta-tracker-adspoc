@@ -34,9 +34,10 @@ export default async function handler(req, res) {
     const eventId =
       payment.order_id ||
       body.payload?.payment?.entity?.order_id ||
-      body.payload?.order?.entity?.id;
+      body.payload?.order?.entity?.id ||
+      `rzp_${Date.now()}`;
 
-    // Hash helper (Meta requires SHA256)
+    // Helper: SHA256 hash (Meta requirement)
     const hash = (val) =>
       crypto.createHash("sha256").update(val.trim().toLowerCase()).digest("hex");
 
@@ -51,14 +52,29 @@ export default async function handler(req, res) {
       user_data.ph = [hash(withCountryCode)];
     }
 
-    // Non-hashed identifiers for better match
+    // Non-hashed identifiers (required)
     user_data.client_ip_address =
       req.headers["x-forwarded-for"] || req.socket.remoteAddress || "";
     user_data.client_user_agent = req.headers["user-agent"] || "";
 
-    // Optional extras (keep commented unless you want them)
-    // user_data.country = [hash("in")];
-    // user_data.external_id = [hash(eventId)];
+    // 🆕 NEW: Optional identity match boosters
+    try {
+      // fbp (browser ID)
+      const cookieHeader = req.headers.cookie || "";
+      const fbpMatch = cookieHeader.match(/_fbp=([^;]+)/);
+      if (fbpMatch) user_data.fbp = fbpMatch[1];
+
+      // fbc (click ID)
+      const referer = req.headers.referer || "";
+      const fbclidMatch = referer.match(/[?&]fbclid=([^&]+)/);
+      if (fbclidMatch)
+        user_data.fbc = `fb.1.${Math.floor(Date.now() / 1000)}.${fbclidMatch[1]}`;
+
+      // external_id (extra dedupe anchor)
+      user_data.external_id = [hash(eventId)];
+    } catch (e) {
+      console.log("Optional ID parsing failed:", e.message);
+    }
 
     // ✅ Final Meta CAPI payload
     const metaPayload = {
@@ -99,3 +115,4 @@ export default async function handler(req, res) {
     res.status(500).json({ error: "Internal Server Error" });
   }
 }
+
