@@ -106,13 +106,95 @@ export default async function handler(req, res) {
       }
     );
 
-    const result = await response.json();
-    console.log("Meta response:", JSON.stringify(result, null, 2));
+   const result = await response.json();
+console.log("Meta response:", JSON.stringify(result, null, 2));
 
-    res.status(200).json({ success: true, metaResponse: result });
-  } catch (error) {
+// ✉️ SEND EMAIL ONLY ON PAYMENT CAPTURED
+if (event === "payment.captured") {
+  try {
+    await sendPurchaseEmail({ email, amount, eventId });
+    console.log("Purchase email sent:", email);
+  } catch (e) {
+    console.error("Email failed:", e.message);
+  }
+}
+
+res.status(200).json({ success: true, metaResponse: result });
+} catch (error) {
+
     console.error("Error sending to Meta:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 }
+// ================================
+// SENDGRID EMAIL HELPER
+// ================================
+async function sendPurchaseEmail({ email, amount, eventId }) {
+  if (!email) return;
+
+  const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+  if (!SENDGRID_API_KEY) {
+    console.error("SENDGRID_API_KEY missing");
+    return;
+  }
+
+  const FROM_EMAIL = "Adspoc <sales@adspoc.xyz>";
+
+  const payload = {
+  personalizations: [
+    {
+      to: [{ email }],
+      subject: "Your download is ready — thank you for purchasing. 🤍",
+    },
+  ],
+  from: { email: FROM_EMAIL },
+  content: [
+    {
+      type: "text/html",
+      value: `
+        <p>Hi,</p>
+
+        <p>
+          Ishan here. Your purchase is complete, and I truly appreciate you
+          choosing to try this out.
+        </p>
+
+        <p>
+          <strong>Amount:</strong> ₹${amount}<br/>
+          <strong>Order ID:</strong> ${eventId}
+        </p>
+
+        <p>
+          <a href="https://delivery.shopifyapps.com/-/a835e40e494c22ea/1e1ff6aeeaa9b57c">Download your file</a>
+        </p>
+
+        <p>
+          Thank you once again for trusting me.
+        </p>
+
+        <p>
+          <strong>P.S.</strong> I’m always available for support or feedback.
+          WhatsApp me anytime at <strong>+91-8828458422</strong>.
+        </p>
+
+        <p>
+          Warm regards,<br/>
+          <strong>ADSPOC.IN</strong>
+        </p>
+      `,
+    },
+  ],
+};
+
+
+  await fetch("https://api.sendgrid.com/v3/mail/send", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${SENDGRID_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 
