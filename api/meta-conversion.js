@@ -138,7 +138,7 @@ async function sendPurchaseEmail({ email, amount, eventId }) {
     return;
   }
 
-  const FROM_EMAIL = "Adspoc <sales@adspoc.xyz>";
+  const FROM_EMAIL = "Ishan <sales@em4354.adspoc.xyz>";
 
   const payload = {
   personalizations: [
@@ -196,5 +196,6 @@ async function sendPurchaseEmail({ email, amount, eventId }) {
     body: JSON.stringify(payload),
   });
 }
+
 
 
