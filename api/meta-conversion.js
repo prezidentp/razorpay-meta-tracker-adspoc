@@ -165,7 +165,7 @@ async function sendPurchaseEmail({ email, amount, eventId }) {
         </p>
 
         <p>
-          <a href="https://delivery.shopifyapps.com/-/a835e40e494c22ea/1e1ff6aeeaa9b57c">Download your file</a>
+          <a href="https://delivery.shopifyapps.com/-/d79bbc7e0579f369/22e3de6679595328">Download your file</a>
         </p>
 
         <p>
@@ -196,6 +196,7 @@ async function sendPurchaseEmail({ email, amount, eventId }) {
     body: JSON.stringify(payload),
   });
 }
+
 
 
 
